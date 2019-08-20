@@ -2,11 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geolocator/geolocator.dart' as prefix0;
 import 'package:http/http.dart' as http;
-import 'package:location/location.dart';
 
- 
 void main() async {
   runApp(new MaterialApp(
     home: new HomePage(),
@@ -39,16 +36,28 @@ class _HomePageState extends State<HomePage> {
   List<Map> nomes = [];
   var rest = [];
   double raioDaBusca = 0;
- Position posicao; 
 
-  Future<Map> posicionar () async{
-  posicao = await Geolocator().getCurrentPosition(desiredAccuracy: prefix0.LocationAccuracy.high);
+  double latitude, longitude;
+
+  var geolocator = Geolocator();
+  var locationOptions =
+      LocationOptions(accuracy: LocationAccuracy.high, distanceFilter: 10);
+
+  Future<Position> posicionar() {
+    StreamSubscription<Position> positionStream = geolocator
+        .getPositionStream(locationOptions)
+        .listen((Position position) {
+        //print(position == null ? 'Desconhecido' : position.latitude.toString() + ', ' + position.longitude.toString());
+        latitude = position.latitude;
+        longitude = position.longitude;
+      }
+    );
+
+    print(latitude);
+    print(longitude);
   }
-  void inicializarBusca(String texto) {
-    textoDaBusca = texto;
-    latitudeDaBusca = -9.66625;
-    longitudeDaBusca = -35.7351;
-  }
+
+  
 
   void limparDados() {
     controladorTexto.text = "";
@@ -59,7 +68,11 @@ class _HomePageState extends State<HomePage> {
     if (texto == null || texto == "") {
       limparDados();
     }
-    inicializarBusca(texto);
+
+    textoDaBusca = texto;
+    latitudeDaBusca = latitude;
+    longitudeDaBusca = longitude;
+    
     url =
         "https://api.tomtom.com/search/2/search/$textoDaBusca.json?key=6qI4CVhqm42mHhfwCQke1U5LgYOFAVOA&lat=$latitudeDaBusca&lon=$longitudeDaBusca&radius=$raioDaBusca";
     http.Response resposta = await http.get(url);
@@ -98,8 +111,6 @@ class _HomePageState extends State<HomePage> {
             onPressed: () {
               limparDados();
               posicionar();
-              print(posicao.latitude.toString());
-              
             },
           ),
         ],
@@ -123,6 +134,12 @@ class _HomePageState extends State<HomePage> {
                   getData(controladorTexto.text);
                   setState(() {});
                 }),
+            IconButton(
+                 icon: Icon(Icons.gps_fixed),
+                 tooltip: 'Sua localização:',
+                 onPressed: posicionar,
+            ),
+            Divider(),
             Text(
               "Você pesquisou por: ",
               style: TextStyle(color: Colors.black, fontSize: 20.0),
@@ -136,16 +153,14 @@ class _HomePageState extends State<HomePage> {
               activeColor: Colors.orangeAccent,
               min: 0.0,
               max: 10000.0,
-              value: raioDaBusca.roundToDouble(),
+              value: raioDaBusca,
               onChanged: _setRaio,
               label: "Raio",
             ),
             Text("${raioDaBusca.round()} m"),
             Divider(),
             Divider(),
-           
             FutureBuilder<Map>(
-              
               future: getData(controladorTexto.text),
               builder: (context, AsyncSnapshot<Map> snapshot) {
                 switch (snapshot.connectionState) {
@@ -208,7 +223,6 @@ class _HomePageState extends State<HomePage> {
                       categorias.add(categoria);
                     }
                   }
-
 
                   return Container(
                     child: Column(
